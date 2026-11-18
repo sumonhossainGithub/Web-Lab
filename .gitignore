@@ -1,0 +1,25 @@
+# Dependencies
+vendor/
+node_modules/
+*vendor/
+*node_modules/
+
+# Environment files
+.env
+*.env
+*.key
+*.log
+
+# Caches and builds
+.phpunit.result.cache
+*.phpunit.result.cache
+*.phpunit.cache
+*/storage/framework/cache/*
+*/storage/framework/sessions/*
+*/storage/framework/views/*
+
+# OS / Editor Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
