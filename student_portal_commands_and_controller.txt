@@ -1,0 +1,143 @@
+================================================================================
+          STUDENT PORTAL - MIGRATION COMMANDS & RESOURCE CONTROLLER
+================================================================================
+
+1. ARTISAN MIGRATION COMMANDS
+--------------------------------------------------------------------------------
+# Create Student Model with Migration:
+php artisan make:model Student -m
+
+# Create Result Model with Migration:
+php artisan make:model Result -m
+
+# Run / Execute Migrations:
+php artisan migrate
+
+# Check Migration Status:
+php artisan migrate:status
+
+# Rollback Last Migration Batch:
+php artisan migrate:rollback
+
+# Reset and Re-run All Migrations with Seeders:
+php artisan migrate:fresh --seed
+
+
+2. MIGRATION SCHEMA (SHORT REFERENCE)
+--------------------------------------------------------------------------------
+// database/migrations/xxxx_create_students_table.php
+Schema::create('students', function (Blueprint $table) {
+    $table->id();
+    $table->string('name');
+    $table->string('roll')->unique();
+    $table->string('department');
+    $table->string('email')->unique();
+    $table->timestamps();
+});
+
+// database/migrations/xxxx_create_results_table.php
+Schema::create('results', function (Blueprint $table) {
+    $table->id();
+    $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
+    $table->string('course_code');
+    $table->decimal('marks', 5, 2);
+    $table->string('grade', 5);
+    $table->timestamps();
+});
+
+
+3. RESOURCE CONTROLLER COMMAND
+--------------------------------------------------------------------------------
+# Generate Resource Controller with all CRUD methods:
+php artisan make:controller StudentController --resource
+
+
+4. RESOURCE CONTROLLER (IN SHORT)
+--------------------------------------------------------------------------------
+// app/Http/Controllers/StudentController.php
+namespace App\Http\Controllers;
+
+use App\Models\Student;
+use App\Http\Requests\StoreStudentRequest;
+use App\Http\Requests\UpdateStudentRequest;
+use Illuminate\Http\Request;
+
+class StudentController extends Controller
+{
+    // [GET /students] - List & search students
+    public function index(Request $request)
+    {
+        $search = $request->input('search');
+        $students = Student::withCount('results')
+            ->when($search, function ($q, $search) {
+                $q->where('name', 'like', "%$search%")
+                  ->orWhere('roll', 'like', "%$search%");
+            })
+            ->latest()
+            ->paginate(8);
+
+        return view('students.index', compact('students'));
+    }
+
+    // [GET /students/create] - Show create form
+    public function create()
+    {
+        return view('students.create');
+    }
+
+    // [POST /students] - Store new student with validation
+    public function store(StoreStudentRequest $request)
+    {
+        $student = Student::create($request->validated());
+
+        return redirect()->route('students.show', $student)
+            ->with('success', 'Student registered successfully!');
+    }
+
+    // [GET /students/{student}] - Display student & results page
+    public function show(Student $student)
+    {
+        $student->load('results');
+        return view('students.show', compact('student'));
+    }
+
+    // [GET /students/{student}/edit] - Show edit form
+    public function edit(Student $student)
+    {
+        return view('students.edit', compact('student'));
+    }
+
+    // [PUT /students/{student}] - Update student details
+    public function update(UpdateStudentRequest $request, Student $student)
+    {
+        $student->update($request->validated());
+
+        return redirect()->route('students.show', $student)
+            ->with('success', 'Student record updated!');
+    }
+
+    // [DELETE /students/{student}] - Delete student record
+    public function destroy(Student $student)
+    {
+        $student->delete();
+
+        return redirect()->route('students.index')
+            ->with('success', 'Student deleted successfully.');
+    }
+}
+
+
+5. ROUTE DECLARATION
+--------------------------------------------------------------------------------
+// routes/web.php
+use App\Http\Controllers\StudentController;
+
+// Full Resource Route (or split with auth middleware):
+Route::resource('students', StudentController::class);
+
+// Protected Actions with Auth Middleware:
+Route::middleware(['auth'])->group(function () {
+    Route::resource('students', StudentController::class)->except(['index', 'show']);
+});
+Route::resource('students', StudentController::class)->only(['index', 'show']);
+================================================================================
